@@ -1,0 +1,56 @@
+name: Build Kernel
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [ksu, normal]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ccache clang lld gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libncurses-dev flex bison bc zip
+
+      - name: Setup toolchain
+        run: |
+          TC="$HOME/proton-clang/proton-clang-20210522/bin"
+          mkdir -p "$TC"
+          cd "$TC"
+          ln -sf "$(command -v clang)" clang
+          ln -sf "$(command -v ld.lld)" ld.lld
+          for p in aarch64-linux-gnu arm-linux-gnueabi; do
+            for t in ld as ar nm objcopy objdump strip readelf gcc g++ cpp; do
+              if command -v $p-$t >/dev/null; then
+                ln -sf "$(command -v $p-$t)" "$p-$t"
+              fi
+            done
+          done
+
+      - name: Build
+        run: |
+          # Disable DEBUG_INFO to avoid gcc-objdump DWARF5 warning spam flooding the log
+          sed -i 's/^CONFIG_DEBUG_INFO=y$/# CONFIG_DEBUG_INFO is not set/' arch/arm64/configs/elish_defconfig
+          if [ "${{ matrix.variant }}" = "ksu" ]; then
+            bash build.sh elish ksu
+          else
+            bash build.sh elish
+          fi
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: kernel-${{ matrix.variant }}
+          path: "*.zip"
+          if-no-files-found: ignore

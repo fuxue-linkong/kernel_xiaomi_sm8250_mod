@@ -164,6 +164,11 @@ extern void cleanup_module(void);
 /* Generic info of form tag = "info" */
 #define MODULE_INFO(tag, info) __MODULE_INFO(tag, tag, info)
 
+/* Backport for KernelSU: MODULE_IMPORT_NS was introduced in kernel 5.4 */
+#ifndef MODULE_IMPORT_NS
+#define MODULE_IMPORT_NS(ns) MODULE_INFO(import_ns, #ns)
+#endif
+
 /* For userspace: you can also call me... */
 #define MODULE_ALIAS(_alias) MODULE_INFO(alias, _alias)
 

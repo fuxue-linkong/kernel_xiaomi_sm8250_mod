@@ -4,6 +4,16 @@
 
 #include <linux/list.h>
 #include <linux/sched.h>
+#include <linux/sched/task.h>
+
+/* Backport for KernelSU: task_work_notify_mode (TWA_RESUME) was introduced in kernel 5.8 */
+#ifndef TWA_RESUME
+enum task_work_notify_mode {
+	TWA_NONE,
+	TWA_RESUME,
+	TWA_SIGNAL,
+};
+#endif
 
 typedef void (*task_work_func_t)(struct callback_head *);
 
