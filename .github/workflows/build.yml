@@ -2,7 +2,7 @@ name: Build Kernel
 
 on:
   push:
-    branches: [ master, main ]
+    branches: [ android15-lineage22-mod ]
   workflow_dispatch:
 
 jobs:
