@@ -42,6 +42,7 @@ jobs:
         run: |
           # Disable DEBUG_INFO to avoid gcc-objdump DWARF5 warning spam flooding the log
           sed -i 's/^CONFIG_DEBUG_INFO=y$/# CONFIG_DEBUG_INFO is not set/' arch/arm64/configs/elish_defconfig
+          echo "CONFIG_REKERNEL=y" >> arch/arm64/configs/elish_defconfig
           if [ "${{ matrix.variant }}" = "ksu" ]; then
             bash build.sh elish ksu
           else
