@@ -4,6 +4,15 @@ on:
   push:
     branches: [ android15-lineage22-mod ]
   workflow_dispatch:
+    inputs:
+      variant:
+        description: 'Build variant'
+        required: false
+        default: 'normal'
+        type: choice
+        options:
+          - ksu
+          - normal
 
 jobs:
   build:
@@ -11,7 +20,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [ksu, normal]
+        variant: ${{ fromJSON(github.event_name == 'push' && '["ksu"]' || format('["{0}"]', github.event.inputs.variant)) }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
