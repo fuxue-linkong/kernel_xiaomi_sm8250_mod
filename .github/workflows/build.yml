@@ -20,8 +20,13 @@ jobs:
 
       - name: Install dependencies
         run: |
+          export DEBIAN_FRONTEND=noninteractive
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ccache clang lld gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi libncurses-dev flex bison bc zip
+          sudo apt-get install -y -qq --no-install-recommends \
+            ccache clang lld \
+            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi \
+            libncurses-dev flex bison bc zip
 
       - name: Setup toolchain
         run: |
