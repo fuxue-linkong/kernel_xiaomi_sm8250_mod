@@ -195,4 +195,6 @@ obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_SENSORS_SSC)	+= sensors/
 obj-$(CONFIG_XIAOMI_MIUI)	+= xiaomi/
 
+obj-$(CONFIG_REKERNEL)	+= rekernel/
+
 obj-$(CONFIG_KSU) += kernelsu/

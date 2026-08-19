@@ -1,0 +1,10 @@
+config REKERNEL
+	bool "Re:Kernel support"
+	depends on FREEZER
+	default n
+	help
+	  Re:Kernel provides a Netlink server for tombstone analysis.
+	  It monitors frozen processes' Binder transactions and signals,
+	  sending events to userspace via Netlink (UNIT 22-26, port 100).
+
+	  Only enable if you need Re:Kernel integration for your device.

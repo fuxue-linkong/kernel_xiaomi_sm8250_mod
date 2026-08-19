@@ -76,6 +76,9 @@
 #ifdef CONFIG_MILLET
 #include <linux/millet.h>
 #endif
+#ifdef CONFIG_REKERNEL
+#include "rekernel/rekernel.h"
+#endif
 #ifdef CONFIG_TASK_DELAY_ACCT
 #include <linux/delayacct.h>
 #endif
@@ -3139,6 +3142,23 @@ static void binder_transaction(struct binder_proc *proc,
 			millet_sendmsg(BINDER_TYPE, target_proc->tsk, &data);
 		}
 #endif
+#ifdef CONFIG_REKERNEL
+		if (start_rekernel_server() == 0) {
+			if (target_proc
+				&& (NULL != target_proc->tsk)
+				&& (NULL != proc->tsk)
+				&& (task_uid(target_proc->tsk).val <= MAX_SYSTEM_UID)
+				&& (proc->pid != target_proc->pid)
+				&& line_is_frozen(target_proc->tsk)) {
+				char binder_kmsg[PACKET_SIZE];
+				snprintf(binder_kmsg, sizeof(binder_kmsg),
+					 "type=Binder,bindertype=reply,oneway=0,from_pid=%d,from=%d,target_pid=%d,target=%d;",
+					 proc->pid, task_uid(proc->tsk).val,
+					 target_proc->pid, task_uid(target_proc->tsk).val);
+				send_netlink_message(binder_kmsg, strlen(binder_kmsg));
+			}
+		}
+#endif
 	} else {
 		if (tr->target.handle) {
 			struct binder_ref *ref;
@@ -3206,6 +3226,24 @@ static void binder_transaction(struct binder_proc *proc,
 			data.mod.k_priv.binder.trans.tf_oneway = tr->flags & TF_ONE_WAY;
 			data.mod.k_priv.binder.trans.code = tr->code;
 			millet_sendmsg(BINDER_TYPE, target_proc->tsk, &data);
+		}
+#endif
+#ifdef CONFIG_REKERNEL
+		if (start_rekernel_server() == 0) {
+			if (target_proc
+				&& (NULL != target_proc->tsk)
+				&& (NULL != proc->tsk)
+				&& (task_uid(target_proc->tsk).val > MIN_USERAPP_UID)
+				&& (proc->pid != target_proc->pid)
+				&& line_is_frozen(target_proc->tsk)) {
+				char binder_kmsg[PACKET_SIZE];
+				snprintf(binder_kmsg, sizeof(binder_kmsg),
+					 "type=Binder,bindertype=transaction,oneway=%d,from_pid=%d,from=%d,target_pid=%d,target=%d;",
+					 tr->flags & TF_ONE_WAY, proc->pid,
+					 task_uid(proc->tsk).val,
+					 target_proc->pid, task_uid(target_proc->tsk).val);
+				send_netlink_message(binder_kmsg, strlen(binder_kmsg));
+			}
 		}
 #endif
 
