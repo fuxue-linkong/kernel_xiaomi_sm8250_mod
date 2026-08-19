@@ -37,7 +37,7 @@
 #include <linux/millet.h>
 #endif
 #ifdef CONFIG_REKERNEL
-#include "rekernel/rekernel.h"
+#include "../rekernel/rekernel.h"
 #endif
 
 struct list_lru binder_alloc_lru;

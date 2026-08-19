@@ -51,7 +51,7 @@
 #include <linux/millet.h>
 #endif
 #ifdef CONFIG_REKERNEL
-#include "rekernel/rekernel.h"
+#include "../drivers/rekernel/rekernel.h"
 #endif
 
 #define CREATE_TRACE_POINTS

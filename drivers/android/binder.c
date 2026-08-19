@@ -77,7 +77,7 @@
 #include <linux/millet.h>
 #endif
 #ifdef CONFIG_REKERNEL
-#include "rekernel/rekernel.h"
+#include "../rekernel/rekernel.h"
 #endif
 #ifdef CONFIG_TASK_DELAY_ACCT
 #include <linux/delayacct.h>
