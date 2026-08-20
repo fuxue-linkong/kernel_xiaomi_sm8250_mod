@@ -1261,7 +1261,7 @@ void __set_task_comm(struct task_struct *tsk, const char *buf, bool exec)
 	task_lock(tsk);
 
 #ifdef CONFIG_PERF_HUMANTASK
-	if (!strcmp(parent->comm, "system_server")) {
+	if (parent && !strcmp(parent->comm, "system_server")) {
 		if (!strcmp(buf, "InputDispatcher") ||
 		    !strcmp(buf, "InputReader")) {
 			tsk->human_task = MAX_LEVER + 1;
