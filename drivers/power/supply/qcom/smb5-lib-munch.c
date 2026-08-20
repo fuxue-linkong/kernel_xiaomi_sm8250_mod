@@ -2922,8 +2922,10 @@ int smblib_get_prop_batt_health(struct smb_charger *chg,
 		//do not use default batt temp threshold
 		rc = smblib_get_prop_from_bms(chg,
 				POWER_SUPPLY_PROP_TEMP, &pval);
-		if (rc < 0)
+		if (rc < 0) {
 			val->intval = POWER_SUPPLY_HEALTH_GOOD;
+			return 0;
+		}
 
 		if (pval.intval < BAT_TEMP_COLD)
 			val->intval = POWER_SUPPLY_HEALTH_COLD;
