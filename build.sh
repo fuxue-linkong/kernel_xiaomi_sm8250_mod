@@ -253,7 +253,8 @@ scripts/config --file out/.config \
     -e KPERFEVENTS \
     -e MILLET \
     -e PERF_HUMANTASK \
-    -d LTO_CLANG \
+    -e LTO_CLANG \
+    -e THINLTO \
     -d LOCALVERSION_AUTO \
     -e SF_BINDER \
     -e XIAOMI_MIUI \
