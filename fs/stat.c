@@ -17,7 +17,7 @@
 #include <linux/syscalls.h>
 #include <linux/pagemap.h>
 #include <linux/compat.h>
-#if defined(CONFIG_KSU_SUSFS_SUS_KSTAT) || defined(CONFIG_KSU_SUSFS_SUS_MOUNT)
+#ifdef CONFIG_KSU_SUSFS
 #include <linux/susfs_def.h>
 #endif
 
@@ -25,7 +25,7 @@
 #include <asm/unistd.h>
 
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-extern void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *stat);
+extern void susfs_sus_kstat_spoof_generic_fillattr(struct inode *inode, struct kstat *stat);
 #endif
 
 /**
@@ -39,17 +39,6 @@ extern void susfs_sus_ino_for_generic_fillattr(unsigned long ino, struct kstat *
  */
 void generic_fillattr(struct inode *inode, struct kstat *stat)
 {
-#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
-	if (likely(current->susfs_task_state & TASK_STRUCT_NON_ROOT_USER_APP_PROC) &&
-			unlikely(inode->i_state & INODE_STATE_SUS_KSTAT)) {
-		susfs_sus_ino_for_generic_fillattr(inode->i_ino, stat);
-		stat->mode = inode->i_mode;
-		stat->rdev = inode->i_rdev;
-		stat->uid = inode->i_uid;
-		stat->gid = inode->i_gid;
-		return;
-	}
-#endif
 	stat->dev = inode->i_sb->s_dev;
 	stat->ino = inode->i_ino;
 	stat->mode = inode->i_mode;
@@ -63,6 +52,9 @@ void generic_fillattr(struct inode *inode, struct kstat *stat)
 	stat->ctime = inode->i_ctime;
 	stat->blksize = i_blocksize(inode);
 	stat->blocks = inode->i_blocks;
+#ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
+	susfs_sus_kstat_spoof_generic_fillattr(inode, stat);
+#endif
 
 	if (IS_NOATIME(inode))
 		stat->result_mask &= ~STATX_ATIME;
