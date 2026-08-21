@@ -3,41 +3,67 @@ name: Build Kernel
 on:
   push:
     branches: [ android15-lineage22-mod ]
+  pull_request:
+    branches: [ android15-lineage22-mod ]
   workflow_dispatch:
     inputs:
-      variant:
-        description: 'Build variant'
-        required: false
-        default: 'normal'
+      device:
+        description: 'Target Device Code (设备代号)'
+        required: true
+        default: 'elish'
         type: choice
         options:
-          - ksu
-          - normal
+          - alioth
+          - apollo
+          - cas
+          - cmi
+          - dagu
+          - elish
+          - enuma
+          - lmi
+          - munch
+          - pipa
+          - psyche
+          - thyme
+          - umi
+      ksu:
+        description: 'Enable KernelSU with SUSFS (ReSukiSU)'
+        required: true
+        type: boolean
+        default: true
 
 jobs:
-  build:
-    runs-on: ubuntu-22.04
-    strategy:
-      fail-fast: false
-      matrix:
-        variant: ${{ fromJSON(github.event_name == 'push' && '["ksu"]' || format('["{0}"]', github.event.inputs.variant)) }}
+  build-kernel:
+    name: Build ${{ github.event.inputs.device || 'elish' }} | ${{ github.event_name == 'push' && 'KSU' || (github.event.inputs.ksu == 'true' && 'KSU' || 'NoKSU') }}
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
+      - name: Set up Environment
         run: |
-          export DEBIAN_FRONTEND=noninteractive
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq --no-install-recommends \
-            ccache clang lld \
-            gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
-            gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi \
-            libncurses-dev flex bison bc zip
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex gawk \
+            git gnupg gperf libncurses-dev \
+            lib32readline-dev lib32z1-dev liblz4-tool \
+            libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
+            schedtool squashfs-tools xsltproc zip zlib1g-dev python3 \
+            clang lld gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
 
-      - name: Setup toolchain
+      - name: Cache ccache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache_mikernel
+          key: ${{ runner.os }}-kernel-ccache-${{ github.event.inputs.device || 'elish' }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-kernel-ccache-${{ github.event.inputs.device || 'elish' }}-
+            ${{ runner.os }}-kernel-ccache-
+
+      - name: Setup proton-clang Toolchain
         run: |
           TC="$HOME/proton-clang/proton-clang-20210522/bin"
           mkdir -p "$TC"
@@ -52,19 +78,26 @@ jobs:
             done
           done
 
-      - name: Build
+      - name: Run Build Script
         run: |
-          # Disable DEBUG_INFO to avoid gcc-objdump DWARF5 warning spam flooding the log
-          sed -i 's/^CONFIG_DEBUG_INFO=y$/# CONFIG_DEBUG_INFO is not set/' arch/arm64/configs/elish_defconfig
-          if [ "${{ matrix.variant }}" = "ksu" ]; then
-            bash build.sh elish ksu
-          else
-            bash build.sh elish
+          chmod +x build.sh
+
+          DEVICE="${{ github.event.inputs.device || 'elish' }}"
+          ARGS="$DEVICE"
+
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
+            ARGS="$ARGS ksu"
+          elif [ "${{ github.event.inputs.ksu }}" = "true" ]; then
+            ARGS="$ARGS ksu"
           fi
 
-      - name: Upload artifacts
+          echo "Executing command: ./build.sh $ARGS"
+          ./build.sh $ARGS
+
+      - name: Upload Flashable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: kernel-${{ matrix.variant }}
+          name: Kernel-${{ github.event.inputs.device || 'elish' }}-${{ github.event_name == 'push' && 'KSU' || (github.event.inputs.ksu == 'true' && 'KSU' || 'NoKSU') }}-${{ github.run_id }}
           path: "*.zip"
+          compression-level: 0
           if-no-files-found: ignore

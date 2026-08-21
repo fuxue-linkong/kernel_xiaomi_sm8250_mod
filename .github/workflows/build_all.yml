@@ -1,0 +1,146 @@
+name: Build All Devices Kernel (Matrix Parallel + Release)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish to GitHub Releases (是否发布到 GitHub Releases)'
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  build-matrix:
+    name: Build ${{ matrix.device }} | ${{ matrix.ksu && 'KSU' || 'NoKSU' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        device:
+          - alioth
+          - apollo
+          - cas
+          - cmi
+          - dagu
+          - elish
+          - enuma
+          - lmi
+          - munch
+          - pipa
+          - psyche
+          - thyme
+          - umi
+        ksu:
+          - true
+          - false
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Environment
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bc bison build-essential ccache curl flex gawk \
+            git gnupg gperf libncurses-dev \
+            lib32readline-dev lib32z1-dev liblz4-tool \
+            libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
+            schedtool squashfs-tools xsltproc zip zlib1g-dev python3 \
+            clang lld gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
+            gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
+
+          mkdir -p ~/.cache/ccache_mikernel
+          ccache -M 10G
+
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.cache/ccache_mikernel
+          key: ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-${{ matrix.ksu && 'ksu' || 'noksu' }}-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-${{ matrix.ksu && 'ksu' || 'noksu' }}-
+            ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-
+            ${{ runner.os }}-kernel-ccache-
+
+      - name: Setup proton-clang Toolchain
+        run: |
+          TC="$HOME/proton-clang/proton-clang-20210522/bin"
+          mkdir -p "$TC"
+          cd "$TC"
+          ln -sf "$(command -v clang)" clang
+          ln -sf "$(command -v ld.lld)" ld.lld
+          for p in aarch64-linux-gnu arm-linux-gnueabi; do
+            for t in ld as ar nm objcopy objdump strip readelf gcc g++ cpp; do
+              if command -v $p-$t >/dev/null; then
+                ln -sf "$(command -v $p-$t)" "$p-$t"
+              fi
+            done
+          done
+
+      - name: Run Build Script
+        run: |
+          chmod +x build.sh
+
+          ARGS="${{ matrix.device }}"
+          if [ "${{ matrix.ksu }}" = "true" ]; then
+            ARGS="$ARGS ksu"
+          fi
+
+          echo "Executing command: ./build.sh $ARGS"
+          ./build.sh $ARGS
+
+      - name: Upload Kernel Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kernel-${{ matrix.device }}-${{ matrix.ksu && 'KSU' || 'NoKSU' }}-${{ github.run_id }}
+          path: "*.zip"
+          compression-level: 0
+          if-no-files-found: ignore
+
+  release:
+    name: Publish GitHub Release
+    if: ${{ github.event.inputs.publish_release == 'true' || github.event.inputs.publish_release == true }}
+    needs: build-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate Release Info
+        id: vars
+        run: |
+          echo "BUILD_DATE=$(date +'%Y%m%d')" >> $GITHUB_OUTPUT
+          echo "TAG_NAME=v$(date +'%Y%m%d')-${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+          echo "SHA_SHORT=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: all_kernels
+          pattern: Kernel-*-${{ github.run_id }}
+          merge-multiple: true
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.TAG_NAME }}
+          name: "Kernel Build - ${{ steps.vars.outputs.BUILD_DATE }} (${{ steps.vars.outputs.SHA_SHORT }})"
+          body: |
+            ## 自动构建内核发布 / Automated Kernel Release
+
+            - **构建日期 / Build Date:** ${{ steps.vars.outputs.BUILD_DATE }}
+            - **提交哈希 / Commit SHA:** `${{ steps.vars.outputs.SHA_SHORT }}`
+            - **支持设备 / Supported Devices:** `alioth, apollo, cas, cmi, dagu, elish, enuma, lmi, munch, pipa, psyche, thyme, umi`
+
+            ---
+            ### 刷机包分类指南 / Flashable ZIP Instructions:
+            - **ReSukiSU**: 集成 ReSukiSU 与 SuSFS。
+            - **NoKernelSU**: 原版纯净内核，支持自行使用 Magisk 或 APatch 刷入。
+          files: all_kernels/*.zip

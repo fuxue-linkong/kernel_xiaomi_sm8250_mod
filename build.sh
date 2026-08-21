@@ -230,6 +230,9 @@ sed -i 's/\/\/39 01 00 00 11 00 03 51 03 FF/39 01 00 00 11 00 03 51 03 FF/g' ${d
 
 make $MAKE_ARGS ${TARGET_DEVICE}_defconfig
 
+# Disable DEBUG_INFO to avoid gcc-objdump DWARF5 warning spam
+scripts/config --file out/.config -d DEBUG_INFO
+
 if [ $KSU_ENABLE -eq 1 ]; then
     scripts/config --file out/.config \
     -e KSU \
