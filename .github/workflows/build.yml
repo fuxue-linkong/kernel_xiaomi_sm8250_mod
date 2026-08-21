@@ -78,7 +78,7 @@ jobs:
             done
           done
           # Enable ccache for clang via PATH symlink
-          ln -sf "$(command -v ccache)" /usr/lib/ccache/clang
+          sudo ln -sf "$(command -v ccache)" /usr/lib/ccache/clang
 
       - name: Run Build Script
         run: |
