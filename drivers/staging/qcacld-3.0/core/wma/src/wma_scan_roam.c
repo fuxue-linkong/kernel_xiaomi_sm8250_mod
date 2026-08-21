@@ -40,6 +40,7 @@
 #include "qdf_nbuf.h"
 #include "qdf_types.h"
 #include "qdf_mem.h"
+#include "qdf_time.h"
 #include "wlan_blm_api.h"
 
 #include "wma_types.h"
@@ -1501,6 +1502,37 @@ static QDF_STATUS wma_roam_scan_filter(tp_wma_handle wma_handle,
 }
 
 /**
+ * wma_get_adaptive_bmiss_bcnt() - adjust BMISS count based on COEX state
+ * @wma_handle: wma handle
+ * @base_cnt: base bmiss count from ini config
+ *
+ * When BT/WLAN coexistence is active, increase the BMISS threshold
+ * to avoid false BMISS triggers caused by BT interference on 2.4GHz.
+ * When COEX is not active, use the base count as-is.
+ *
+ * Return: adjusted bmiss count (clamped to 5-100)
+ */
+static A_INT32 wma_get_adaptive_bmiss_bcnt(tp_wma_handle wma_handle,
+					   A_INT32 base_cnt)
+{
+	A_INT32 adjusted = base_cnt;
+
+	if (wma_handle->mws_coex_active) {
+		/* BT active: tolerate more beacon loss due to coexistence */
+		adjusted += 15;
+		WMA_LOGD("COEX active: BMISS bcnt adjusted %d -> %d",
+			 base_cnt, adjusted);
+	}
+
+	if (adjusted < 5)
+		adjusted = 5;
+	if (adjusted > 100)
+		adjusted = 100;
+
+	return adjusted;
+}
+
+/**
  * wma_roam_scan_bmiss_cnt() - set bmiss count to fw
  * @wma_handle: wma handle
  * @first_bcnt: first bmiss count
@@ -1516,13 +1548,18 @@ QDF_STATUS wma_roam_scan_bmiss_cnt(tp_wma_handle wma_handle,
 				   A_UINT32 final_bcnt, uint32_t vdev_id)
 {
 	QDF_STATUS status;
+	A_INT32 adj_first_bcnt, adj_final_bcnt;
 
-	WMA_LOGD("%s: first_bcnt: %d, final_bcnt: %d", __func__, first_bcnt,
-		 final_bcnt);
+	adj_first_bcnt = wma_get_adaptive_bmiss_bcnt(wma_handle, first_bcnt);
+	adj_final_bcnt = wma_get_adaptive_bmiss_bcnt(wma_handle,
+						     (A_INT32)final_bcnt);
+
+	WMA_LOGD("%s: first_bcnt: %d->%d, final_bcnt: %d->%d", __func__,
+		 first_bcnt, adj_first_bcnt, final_bcnt, adj_final_bcnt);
 
 	status = wma_vdev_set_param(wma_handle->wmi_handle,
 				vdev_id, WMI_VDEV_PARAM_BMISS_FIRST_BCNT,
-				first_bcnt);
+				adj_first_bcnt);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		WMA_LOGE("wma_vdev_set_param WMI_VDEV_PARAM_BMISS_FIRST_BCNT returned Error %d",
 			status);
@@ -1531,7 +1568,7 @@ QDF_STATUS wma_roam_scan_bmiss_cnt(tp_wma_handle wma_handle,
 
 	status = wma_vdev_set_param(wma_handle->wmi_handle,
 				vdev_id, WMI_VDEV_PARAM_BMISS_FINAL_BCNT,
-				final_bcnt);
+				adj_final_bcnt);
 	if (QDF_IS_STATUS_ERROR(status)) {
 		WMA_LOGE("wma_vdev_set_param WMI_VDEV_PARAM_BMISS_FINAL_BCNT returned Error %d",
 			status);

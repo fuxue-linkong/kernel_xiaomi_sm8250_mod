@@ -20,6 +20,7 @@
 #include <wma_coex.h>
 #include <wma.h>
 #include "wmi_unified.h"
+#include "qdf_time.h"
 
 /**
  * wma_mws_coex_state_host_event_handler - Coex state Event Handler
@@ -36,6 +37,7 @@ static int wma_mws_coex_state_host_event_handler(void *handle, uint8_t *event,
 	wmi_vdev_get_mws_coex_state_fixed_param *param_buf;
 	struct mws_coex_state coex_state;
 	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
+	tp_wma_handle wma = (tp_wma_handle)handle;
 
 	wma_debug("Enter");
 	param_tlvs =
@@ -76,6 +78,14 @@ static int wma_mws_coex_state_host_event_handler(void *handle, uint8_t *event,
 		  param_buf->chavd_group1_bitmap,
 		  param_buf->chavd_group2_bitmap,
 		  param_buf->chavd_group3_bitmap);
+
+	/* Track COEX state for adaptive BMISS algorithm */
+	if (wma) {
+		wma->mws_coex_active =
+			(param_buf->active_conflict_count > 0);
+		if (wma->mws_coex_active)
+			wma->coex_active_ts = qdf_system_ticks();
+	}
 
 	wma_debug("Exit");
 	return 0;

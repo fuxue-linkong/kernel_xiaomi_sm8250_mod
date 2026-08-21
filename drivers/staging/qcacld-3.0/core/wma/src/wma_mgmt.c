@@ -37,6 +37,7 @@
 #include "qdf_nbuf.h"
 #include "qdf_types.h"
 #include "qdf_mem.h"
+#include "qdf_time.h"
 
 #include "wma_types.h"
 #include "lim_api.h"
@@ -2435,6 +2436,22 @@ void wma_beacon_miss_handler(tp_wma_handle wma, uint32_t vdev_id, int32_t rssi)
 {
 	struct missed_beacon_ind *beacon_miss_ind;
 	struct mac_context *mac = cds_get_context(QDF_MODULE_ID_PE);
+	qdf_time_t now, grace_ticks;
+
+	/*
+	 * If COEX was recently active, suppress BMISS temporarily.
+	 * BT interference on 2.4GHz can cause transient beacon loss that
+	 * should not trigger a full disconnect. The adaptive BMISS threshold
+	 * in wma_roam_scan_bmiss_cnt already handles the proactive case;
+	 * this handles the case where COEX just ended.
+	 */
+	grace_ticks = qdf_system_msecs_to_ticks(500);
+	now = qdf_system_ticks();
+	if (wma->mws_coex_active ||
+	    qdf_system_time_before(now - wma->coex_active_ts, grace_ticks)) {
+		WMA_LOGD("BMISS suppressed: COEX active or within grace period");
+		return;
+	}
 
 	beacon_miss_ind = qdf_mem_malloc(sizeof(*beacon_miss_ind));
 	if (!beacon_miss_ind)

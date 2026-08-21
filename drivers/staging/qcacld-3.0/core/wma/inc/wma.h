@@ -21,6 +21,7 @@
 
 #include "a_types.h"
 #include "qdf_types.h"
+#include "qdf_time.h"
 #include "osapi_linux.h"
 #include "htc_packet.h"
 #include "i_qdf_event.h"
@@ -1122,6 +1123,9 @@ typedef struct {
 #ifdef WLAN_FEATURE_PKT_CAPTURE
 	bool is_pktcapture_enabled;
 #endif
+	/* COEX state tracking for adaptive BMISS algorithm */
+	bool mws_coex_active;
+	qdf_time_t coex_active_ts;
 } t_wma_handle, *tp_wma_handle;
 
 /**
