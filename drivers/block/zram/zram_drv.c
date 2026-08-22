@@ -2645,6 +2645,8 @@ static int zram_add(void)
 	if (!zram)
 		return -ENOMEM;
 
+	zram->use_dedup = true;
+
 	ret = idr_alloc(&zram_index_idr, zram, 0, 0, GFP_KERNEL);
 	if (ret < 0)
 		goto out_free_dev;
