@@ -2,9 +2,9 @@ name: Build Kernel
 
 on:
   push:
-    branches: [ android15-lineage22-mod ]
+    branches: [ android15-lineage22-mod, backport-5.10-bpf ]
   pull_request:
-    branches: [ android15-lineage22-mod ]
+    branches: [ android15-lineage22-mod, backport-5.10-bpf ]
   workflow_dispatch:
     inputs:
       device:
