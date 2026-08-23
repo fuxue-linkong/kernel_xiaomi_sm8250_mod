@@ -2396,6 +2396,28 @@ static void prepare_workingset_protection(pg_data_t *pgdat, struct scan_control 
 	}
 }
 
+/*
+ * Auto-calculate vm.clean_min_kbytes as 3% of total RAM
+ * if not already set by Kconfig or early boot.
+ */
+static int __init le9_auto_clean_min(void)
+{
+	unsigned long total_kb, val;
+
+	if (sysctl_clean_min_kbytes)
+		return 0;
+
+	total_kb = totalram_pages << (PAGE_SHIFT - 10);
+	val = total_kb * 3 / 100;
+	if (val < 65536)
+		val = 65536;
+	sysctl_clean_min_kbytes = val;
+	pr_info("le9: auto clean_min_kbytes=%lu (3%% of %lu MB)\n",
+		val, total_kb >> 10);
+	return 0;
+}
+late_initcall(le9_auto_clean_min);
+
 enum scan_balance {
 	SCAN_EQUAL,
 	SCAN_FRACT,
