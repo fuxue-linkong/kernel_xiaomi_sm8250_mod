@@ -363,14 +363,56 @@ SYSCALL_DEFINE2(newlstat, const char __user *, filename,
 	return cp_new_stat(&stat, statbuf);
 }
 
+#ifdef CONFIG_KSU_SUSFS
+extern int ksu_handle_stat(int *dfd, struct filename **filename, int *flags);
+#else
 #ifdef CONFIG_KSU
 extern int ksu_handle_stat(int *dfd, const char __user **filename_user, int *flags);
+#endif
 #endif
 #ifdef CONFIG_KSU_MANUAL_HOOK
 extern void ksu_handle_newfstat_ret(unsigned int *fd, struct stat __user **statbuf_ptr);
 #if defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_COMPAT_STAT64)
 extern void ksu_handle_fstat64_ret(unsigned long *fd, struct stat64 __user **statbuf_ptr);
 #endif
+#endif
+
+#ifdef CONFIG_KSU_SUSFS
+static int ksu_vfs_fstatat(int dfd, const char __user *filename, int flag,
+			   struct kstat *stat)
+{
+	struct path path;
+	unsigned int lookup_flags = LOOKUP_FOLLOW | LOOKUP_AUTOMOUNT;
+	struct filename *name;
+	int error;
+
+	flag |= AT_NO_AUTOMOUNT; /* 对齐 vfs_fstatat */
+
+	if ((flag & ~(AT_SYMLINK_NOFOLLOW | AT_NO_AUTOMOUNT |
+		      AT_EMPTY_PATH | KSTAT_QUERY_FLAGS)) != 0)
+		return -EINVAL;
+
+	if (flag & AT_SYMLINK_NOFOLLOW)
+		lookup_flags &= ~LOOKUP_FOLLOW;
+	if (flag & AT_NO_AUTOMOUNT)
+		lookup_flags &= ~LOOKUP_AUTOMOUNT;
+	if (flag & AT_EMPTY_PATH)
+		lookup_flags |= LOOKUP_EMPTY;
+
+	name = getname_flags(filename, lookup_flags, NULL);
+	if (IS_ERR(name))
+		return PTR_ERR(name);
+
+	ksu_handle_stat(&dfd, &name, &flag);
+
+	error = user_path_at_name(dfd, name, lookup_flags, &path);
+	if (error)
+		return error;
+
+	error = vfs_getattr(&path, stat, STATX_BASIC_STATS, flag);
+	path_put(&path);
+	return error;
+}
 #endif
 
 #if !defined(__ARCH_WANT_STAT64) || defined(__ARCH_WANT_SYS_NEWFSTATAT)
@@ -380,10 +422,14 @@ SYSCALL_DEFINE4(newfstatat, int, dfd, const char __user *, filename,
 	struct kstat stat;
 	int error;
 
-#ifdef CONFIG_KSU
+#ifdef CONFIG_KSU_SUSFS
+	error = ksu_vfs_fstatat(dfd, filename, flag, &stat);
+#elif defined(CONFIG_KSU)
 	ksu_handle_stat(&dfd, &filename, &flag);
-#endif
 	error = vfs_fstatat(dfd, filename, &stat, flag);
+#else
+	error = vfs_fstatat(dfd, filename, &stat, flag);
+#endif
 	if (error)
 		return error;
 	return cp_new_stat(&stat, statbuf);
@@ -539,10 +585,14 @@ SYSCALL_DEFINE4(fstatat64, int, dfd, const char __user *, filename,
 	struct kstat stat;
 	int error;
 
-#ifdef CONFIG_KSU
+#ifdef CONFIG_KSU_SUSFS
+	error = ksu_vfs_fstatat(dfd, filename, flag, &stat);
+#elif defined(CONFIG_KSU)
 	ksu_handle_stat(&dfd, &filename, &flag); /* 32-bit su support */
-#endif
 	error = vfs_fstatat(dfd, filename, &stat, flag);
+#else
+	error = vfs_fstatat(dfd, filename, &stat, flag);
+#endif
 	if (error)
 		return error;
 	return cp_new_stat64(&stat, statbuf);

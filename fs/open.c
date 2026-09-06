@@ -450,17 +450,96 @@ out:
 	return res;
 }
 
+#ifdef CONFIG_KSU_SUSFS
+extern int ksu_handle_faccessat(int *dfd, struct filename **filename, int *mode,
+				int *flags);
+#else
 #ifdef CONFIG_KSU
 extern int ksu_handle_faccessat(int *dfd, const char __user **filename_user, int *mode,
-			                    int *flags);
+				int *flags);
+#endif
+#endif
+
+#ifdef CONFIG_KSU_SUSFS
+long do_faccessat_name(int dfd, struct filename *name, int mode)
+{
+	const struct cred *old_cred;
+	struct cred *override_cred;
+	struct path path;
+	struct inode *inode;
+	struct vfsmount *mnt;
+	int res;
+	unsigned int lookup_flags = LOOKUP_FOLLOW;
+
+	if (mode & ~S_IRWXO) {
+		putname(name);
+		return -EINVAL;
+	}
+
+	override_cred = prepare_creds();
+	if (!override_cred) {
+		putname(name);
+		return -ENOMEM;
+	}
+
+	override_cred->fsuid = override_cred->uid;
+	override_cred->fsgid = override_cred->gid;
+
+	if (!issecure(SECURE_NO_SETUID_FIXUP)) {
+		kuid_t root_uid = make_kuid(override_cred->user_ns, 0);
+		if (!uid_eq(override_cred->uid, root_uid))
+			cap_clear(override_cred->cap_effective);
+		else
+			override_cred->cap_effective =
+				override_cred->cap_permitted;
+	}
+
+	override_cred->non_rcu = 1;
+
+	old_cred = override_creds(override_cred);
+
+	res = user_path_at_name(dfd, name, lookup_flags, &path);
+	if (res)
+		goto out;
+
+	inode = d_backing_inode(path.dentry);
+	mnt = path.mnt;
+
+	if ((mode & MAY_EXEC) && S_ISREG(inode->i_mode)) {
+		res = -EACCES;
+		if (path_noexec(&path))
+			goto out_path_release;
+	}
+
+	res = inode_permission2(mnt, inode, mode | MAY_ACCESS);
+	if (res || !(mode & S_IWOTH) || special_file(inode->i_mode))
+		goto out_path_release;
+	if (__mnt_is_readonly(path.mnt))
+		res = -EROFS;
+
+out_path_release:
+	path_put(&path);
+out:
+	revert_creds(old_cred);
+	put_cred(override_cred);
+	return res;
+}
 #endif
 
 SYSCALL_DEFINE3(faccessat, int, dfd, const char __user *, filename, int, mode)
 {
+#ifdef CONFIG_KSU_SUSFS
+	struct filename *name = getname(filename);
+	if (IS_ERR(name))
+		return PTR_ERR(name);
+	ksu_handle_faccessat(&dfd, &name, &mode, NULL);
+	return do_faccessat_name(dfd, name, mode);
+#else
 #ifdef CONFIG_KSU
 	ksu_handle_faccessat(&dfd, &filename, &mode, NULL);
 #endif
 	return do_faccessat(dfd, filename, mode);
+#endif
 }
 
 SYSCALL_DEFINE2(access, const char __user *, filename, int, mode)
