@@ -2855,6 +2855,13 @@ int user_path_at_empty(int dfd, const char __user *name, unsigned flags,
 }
 EXPORT_SYMBOL(user_path_at_empty);
 
+int user_path_at_name(int dfd, struct filename *name, unsigned flags,
+		      struct path *path)
+{
+	return filename_lookup(dfd, name, flags, path, NULL);
+}
+EXPORT_SYMBOL(user_path_at_name);
+
 /**
  * mountpoint_last - look up last component for umount
  * @nd:   pathwalk nameidata - currently pointing at parent directory of "last"
