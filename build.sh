@@ -95,9 +95,9 @@ echo "TARGET_DEVICE: $TARGET_DEVICE"
 
 if [ $KSU_ENABLE -eq 1 ]; then
     echo "KSU is enabled"
-    # Pin ReSukiSU to a fixed commit (2026-09-05 main) for reproducible builds.
+    # Pin ReSukiSU to a fixed commit (2026-09-11 main) for reproducible builds.
     # Update RESUKISU_COMMIT when bumping ReSukiSU.
-    RESUKISU_COMMIT=3c1882886dbbb54f4aae7ddf205f8ccde32c2a34
+    RESUKISU_COMMIT=052ca27775cc9c8570e3b1ba3db7c29486d6020e
     curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s "$RESUKISU_COMMIT"
 else
     echo "KSU is disabled"
