@@ -2418,6 +2418,30 @@ static int __init le9_auto_clean_min(void)
 }
 late_initcall(le9_auto_clean_min);
 
+/*
+ * Auto-calculate vm.anon_min_kbytes as 3% of total RAM
+ * if not already set by Kconfig or early boot.
+ * This hard-protects anonymous pages of the working set to
+ * reduce background process kills under memory pressure.
+ */
+static int __init le9_auto_anon_min(void)
+{
+	unsigned long total_kb, val;
+
+	if (sysctl_anon_min_kbytes)
+		return 0;
+
+	total_kb = totalram_pages << (PAGE_SHIFT - 10);
+	val = total_kb * 3 / 100;
+	if (val < 65536)
+		val = 65536;
+	sysctl_anon_min_kbytes = val;
+	pr_info("le9: auto anon_min_kbytes=%lu (3%% of %lu MB)\n",
+		val, total_kb >> 10);
+	return 0;
+}
+late_initcall(le9_auto_anon_min);
+
 enum scan_balance {
 	SCAN_EQUAL,
 	SCAN_FRACT,
