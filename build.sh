@@ -99,6 +99,12 @@ if [ $KSU_ENABLE -eq 1 ]; then
     # Update RESUKISU_COMMIT when bumping ReSukiSU.
     RESUKISU_COMMIT=8770c7e324a22895703c4916b8a16520e0b81c79
     curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s "$RESUKISU_COMMIT"
+
+    # ReSukiSU 上游 sucompat 的 SUSFS 版 ksu_handle_faccessat 缺少 uid 校验，
+    # 会把任何进程对 /system/bin/su 的 access()/faccessat() 改写成 /system/bin/sh，
+    # 导致检测软件误报 su 存在（详见 patch_sucompat.py）。补丁幂等，锚点失配即失败。
+    echo "Hardening sucompat faccessat path..."
+    python3 patch_sucompat.py KernelSU/kernel/feature/sucompat.c
 else
     echo "KSU is disabled"
 fi
