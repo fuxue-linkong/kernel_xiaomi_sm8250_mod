@@ -2,7 +2,7 @@
 
 [![Build Kernel](https://github.com/fuxue-linkong/kernel_xiaomi_sm8250_mod/actions/workflows/build.yml/badge.svg)](https://github.com/fuxue-linkong/kernel_xiaomi_sm8250_mod/actions/workflows/build.yml)
 
-基于 LineageOS 22.1 内核源码，集成 [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU)，内核版本 **4.19.325-FuXue1.0**
+基于 LineageOS 22.1 内核源码，集成 [BakaSU](https://github.com/Baka-SU/BakaSU)，内核版本 **4.19.325-FuXue1.0**
 
 [English](#english) | [中文](#中文)
 
@@ -16,9 +16,9 @@ This kernel is based on [LineageOS 22.1 xiaomi sm8250 kernel source](https://git
 
 Thanks to [@UtsavBalar1231](https://github.com/UtsavBalar1231/) and [@liyafe1997](https://github.com/liyafe1997) for the original work!
 
-The main purpose of this kernel is to fix the [battery stuck at 1% problem](https://github.com/liyafe1997/Xiaomi-fix-battery-one-percent) on devices using PM8150 (Qualcomm fuel gauge GEN4), and provide [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) integrated pre-built images.
+The main purpose of this kernel is to fix the [battery stuck at 1% problem](https://github.com/liyafe1997/Xiaomi-fix-battery-one-percent) on devices using PM8150 (Qualcomm fuel gauge GEN4), and provide [BakaSU](https://github.com/Baka-SU/BakaSU) integrated pre-built images.
 
-For using ReSukiSU, install the [ReSukiSU Manager](https://github.com/ReSukiSU/ReSukiSU/releases) APK.
+For using BakaSU, install the [BakaSU Manager](https://github.com/Baka-SU/BakaSU/releases) APK.
 
 Affected devices by the "1% battery bug": alioth, apollo, lmi, thyme, umi, pipa. For other devices, you can use this kernel as a KernelSU-enabled stock kernel replacement. The NoKernelSU version is also compatible with [APatch](https://github.com/bmax121/APatch).
 
@@ -51,7 +51,7 @@ Pre-built images are built from the `android15-lineage22-mod` branch. Works on s
 3. F2FS realtime discard enabled
 4. CANBus and USB CAN adapter support (e.g. CANable)
 5. LZ4, LZ4HC, ZSTD compression for ZRAM
-6. ReSukiSU integration (latest main branch)
+6. BakaSU integration (pinned to a fixed main-branch commit)
 7. LTO + ThinLTO optimization
 
 ### How to Build
@@ -75,10 +75,10 @@ Pre-built images are built from the `android15-lineage22-mod` branch. Works on s
    # Without KernelSU
    bash build.sh <device>
 
-   # With ReSukiSU
+   # With BakaSU
    bash build.sh <device> ksu
 
-   # Example: build for elish with ReSukiSU
+   # Example: build for elish with BakaSU
    bash build.sh elish ksu
    ```
 
@@ -92,9 +92,9 @@ Pre-built images are built from the `android15-lineage22-mod` branch. Works on s
 
 感谢 [@UtsavBalar1231](https://github.com/UtsavBalar1231/) 和 [@liyafe1997](https://github.com/liyafe1997) 的原始工作！
 
-维护和编译该内核的主要目的是修复[电量卡在 1% 的问题](https://github.com/liyafe1997/Xiaomi-fix-battery-one-percent)，以及提供集成 [ReSukiSU](https://github.com/ReSukiSU/ReSukiSU) 的预编译内核。
+维护和编译该内核的主要目的是修复[电量卡在 1% 的问题](https://github.com/liyafe1997/Xiaomi-fix-battery-one-percent)，以及提供集成 [BakaSU](https://github.com/Baka-SU/BakaSU) 的预编译内核。
 
-使用 ReSukiSU 请安装 [ReSukiSU 管理器](https://github.com/ReSukiSU/ReSukiSU/releases) APK。
+使用 BakaSU 请安装 [BakaSU 管理器](https://github.com/Baka-SU/BakaSU/releases) APK。
 
 受"1% 电量 bug"影响的设备：alioth, apollo, lmi, thyme, umi, pipa（均使用 PM8150 高通 GEN4 电量计）。其他设备可当作带 KernelSU 的官核平替。不带 KernelSU 版本也可用于 [APatch](https://github.com/bmax121/APatch)。
 
@@ -127,7 +127,7 @@ Release 由 `android15-lineage22-mod` 分支编译，支持原版 MIUI/HyperOS �
 3. F2FS 开启 realtime discard
 4. 支持 CANBus 及 USB CAN 适配器（如 CANable）
 5. ZRAM 支持 LZ4、LZ4HC、ZSTD 压缩算法
-6. 集成 ReSukiSU（最新 main 分支）
+6. 集成 BakaSU（锁定 main 分支固定 commit）
 7. LTO + ThinLTO 优化
 
 ### 构建指南
@@ -151,10 +151,10 @@ Release 由 `android15-lineage22-mod` 分支编译，支持原版 MIUI/HyperOS �
    # 不带 KernelSU
    bash build.sh <设备代号>
 
-   # 带 ReSukiSU
+   # 带 BakaSU
    bash build.sh <设备代号> ksu
 
-   # 示例：为 elish 编译带 ReSukiSU 的版本
+   # 示例：为 elish 编译带 BakaSU 的版本
    bash build.sh elish ksu
    ```
 
@@ -162,6 +162,6 @@ Release 由 `android15-lineage22-mod` 分支编译，支持原版 MIUI/HyperOS �
 
 ## CI 构建
 
-本仓库使用 GitHub Actions 自动构建，每次 push 自动编译 elish 设备带 ReSukiSU 的内核。Workflow dispatch 支持手动选择设备和是否启用 KSU。
+本仓库使用 GitHub Actions 自动构建，每次 push 自动编译 elish 设备带 BakaSU 的内核。Workflow dispatch 支持手动选择设备和是否启用 KSU。
 
 构建状态：[![Build Kernel](https://github.com/fuxue-linkong/kernel_xiaomi_sm8250_mod/actions/workflows/build.yml/badge.svg)](https://github.com/fuxue-linkong/kernel_xiaomi_sm8250_mod/actions/workflows/build.yml)

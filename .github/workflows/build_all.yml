@@ -141,6 +141,6 @@ jobs:
 
             ---
             ### 刷机包分类指南 / Flashable ZIP Instructions:
-            - **ReSukiSU**: 集成 ReSukiSU 与 SuSFS。
+            - **BakaSU**: 集成 BakaSU 与 SuSFS。
             - **NoKernelSU**: 原版纯净内核，支持自行使用 Magisk 或 APatch 刷入。
           files: all_kernels/*.zip
