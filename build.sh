@@ -85,7 +85,7 @@ clang --version
 KSU_ZIP_STR=NoKernelSU
 if [ "$2" == "ksu" ]; then
     KSU_ENABLE=1
-    KSU_ZIP_STR=ReSukiSU
+    KSU_ZIP_STR=BakaSU
 else
     KSU_ENABLE=0
 fi
@@ -94,13 +94,17 @@ fi
 echo "TARGET_DEVICE: $TARGET_DEVICE"
 
 if [ $KSU_ENABLE -eq 1 ]; then
-    echo "KSU is enabled"
-    # Pin ReSukiSU to a fixed commit (2026-10-04 main, kernel driver 35203) for reproducible builds.
-    # Update RESUKISU_COMMIT when bumping ReSukiSU.
-    RESUKISU_COMMIT=8770c7e324a22895703c4916b8a16520e0b81c79
-    curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash -s "$RESUKISU_COMMIT"
+    echo "KSU is enabled (BakaSU)"
+    # ReSukiSU 已更名为 BakaSU（同一项目，仓库迁移至 Baka-SU/BakaSU）。
+    # 锁定到固定 commit（2026-10-24 main）以保证构建可复现。
+    # 该版本已合入 PR #637（Sync upstream），移除了 susfs_compat.mk 中
+    # 「Please wait susfs update」的编译期硬门闩，4.19 + SUSFS v2.3.0 可正常编译。
+    # Update BAKASU_COMMIT when bumping BakaSU.
+    # 上游 setup.sh 会在 drivers/ 下建立 kernelsu 软链接，并追加 CONFIG_KSU 的 Makefile/Kconfig 条目。
+    BAKASU_COMMIT=d5e9e025b8b49155f8014684d64c91742b465f65
+    curl -LSs "https://raw.githubusercontent.com/Baka-SU/BakaSU/main/kernel/setup.sh" | bash -s "$BAKASU_COMMIT"
 
-    # ReSukiSU 上游 sucompat 的 SUSFS 版 ksu_handle_faccessat 缺少 uid 校验，
+    # BakaSU 上游 sucompat 的 SUSFS 版 ksu_handle_faccessat 仍缺少 uid 校验，
     # 会把任何进程对 /system/bin/su 的 access()/faccessat() 改写成 /system/bin/sh，
     # 导致检测软件误报 su 存在（详见 patch_sucompat.py）。补丁幂等，锚点失配即失败。
     echo "Hardening sucompat faccessat path..."

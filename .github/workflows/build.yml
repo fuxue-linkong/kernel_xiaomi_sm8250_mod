@@ -27,7 +27,7 @@ on:
           - thyme
           - umi
       ksu:
-        description: 'Enable KernelSU with SUSFS (ReSukiSU)'
+        description: 'Enable KernelSU with SUSFS (BakaSU)'
         required: true
         type: boolean
         default: true
