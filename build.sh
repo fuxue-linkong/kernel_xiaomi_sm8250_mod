@@ -177,6 +177,12 @@ else
     scripts/config --file out/.config -d KSU
 fi
 
+# elish_defconfig enables CONFIG_REKERNEL, whose binder_alloc code uses
+# WARN_AHEAD_SPACE from millet.h. That header only exists under
+# CONFIG_XIAOMI_MIUI -> CONFIG_MILLET, which the AOSP variant deliberately
+# leaves off (no MIUI userspace on third-party ROMs), so turn Re:Kernel off.
+scripts/config --file out/.config -d REKERNEL
+
 make $MAKE_ARGS -j$(nproc)
 
 if [ -f "out/arch/arm64/boot/Image" ]; then
