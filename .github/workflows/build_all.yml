@@ -1,4 +1,4 @@
-name: Build All Devices Kernel (Matrix Parallel + Release)
+name: Build elish Kernel (MIUI + AOSP + Release)
 
 on:
   workflow_dispatch:
@@ -14,25 +14,16 @@ permissions:
 
 jobs:
   build-matrix:
-    name: Build ${{ matrix.device }} | ${{ matrix.ksu && 'KSU' || 'NoKSU' }}
-    runs-on: ubuntu-latest
+    name: Build elish | ${{ matrix.variant }} | ${{ matrix.ksu && 'KSU' || 'NoKSU' }}
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
         device:
-          - alioth
-          - apollo
-          - cas
-          - cmi
-          - dagu
           - elish
-          - enuma
-          - lmi
-          - munch
-          - pipa
-          - psyche
-          - thyme
-          - umi
+        variant:
+          - miui
+          - aosp
         ksu:
           - true
           - false
@@ -48,8 +39,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex gawk \
             git gnupg gperf libncurses-dev \
-            lib32readline-dev lib32z1-dev liblz4-tool \
-            libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
+            lib32readline-dev lib32z1-dev lz4 \
+            libsdl1.2-dev libssl-dev libxml2-utils lzop pngcrush rsync \
             schedtool squashfs-tools xsltproc zip zlib1g-dev python3 \
             clang lld gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
             gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
@@ -61,9 +52,10 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ccache_mikernel
-          key: ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-${{ matrix.ksu && 'ksu' || 'noksu' }}-${{ github.run_id }}
+          key: ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-${{ matrix.variant }}-${{ matrix.ksu && 'ksu' || 'noksu' }}-${{ github.run_id }}
           restore-keys: |
-            ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-${{ matrix.ksu && 'ksu' || 'noksu' }}-
+            ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-${{ matrix.variant }}-${{ matrix.ksu && 'ksu' || 'noksu' }}-
+            ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-${{ matrix.variant }}-
             ${{ runner.os }}-kernel-ccache-${{ matrix.device }}-
             ${{ runner.os }}-kernel-ccache-
 
@@ -90,6 +82,7 @@ jobs:
           if [ "${{ matrix.ksu }}" = "true" ]; then
             ARGS="$ARGS ksu"
           fi
+          ARGS="$ARGS ${{ matrix.variant }}"
 
           echo "Executing command: ./build.sh $ARGS"
           ./build.sh $ARGS
@@ -97,7 +90,7 @@ jobs:
       - name: Upload Kernel Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Kernel-${{ matrix.device }}-${{ matrix.ksu && 'KSU' || 'NoKSU' }}-${{ github.run_id }}
+          name: Kernel-${{ matrix.device }}-${{ matrix.variant }}-${{ matrix.ksu && 'KSU' || 'NoKSU' }}-${{ github.run_id }}
           path: "*.zip"
           compression-level: 0
           if-no-files-found: ignore
@@ -106,7 +99,7 @@ jobs:
     name: Publish GitHub Release
     if: ${{ github.event.inputs.publish_release == 'true' || github.event.inputs.publish_release == true }}
     needs: build-matrix
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
@@ -137,10 +130,12 @@ jobs:
 
             - **构建日期 / Build Date:** ${{ steps.vars.outputs.BUILD_DATE }}
             - **提交哈希 / Commit SHA:** `${{ steps.vars.outputs.SHA_SHORT }}`
-            - **支持设备 / Supported Devices:** `alioth, apollo, cas, cmi, dagu, elish, enuma, lmi, munch, pipa, psyche, thyme, umi`
+            - **支持设备 / Supported Devices:** `elish`
 
             ---
             ### 刷机包分类指南 / Flashable ZIP Instructions:
+            - **MIUI**: MIUI/HyperOS 专用（含 MIUI 面板与刷新率调整）。
+            - **AOSP**: 第三方 AOSP ROM 专用（原版 display DTS，MIUI 机器刷入会黑屏）。
             - **BakaSU**: 集成 BakaSU 与 SuSFS。
             - **NoKernelSU**: 原版纯净内核，支持自行使用 Magisk 或 APatch 刷入。
           files: all_kernels/*.zip
