@@ -7,25 +7,15 @@ on:
     branches: [ android15-lineage22-mod, backport-5.10-bpf ]
   workflow_dispatch:
     inputs:
-      device:
-        description: 'Target Device Code (设备代号)'
+      variant:
+        description: 'Kernel variant (MIUI / AOSP / both)'
         required: true
-        default: 'elish'
         type: choice
         options:
-          - alioth
-          - apollo
-          - cas
-          - cmi
-          - dagu
-          - elish
-          - enuma
-          - lmi
-          - munch
-          - pipa
-          - psyche
-          - thyme
-          - umi
+          - both
+          - miui
+          - aosp
+        default: both
       ksu:
         description: 'Enable KernelSU with SUSFS (BakaSU)'
         required: true
@@ -34,8 +24,14 @@ on:
 
 jobs:
   build-kernel:
-    name: Build ${{ github.event.inputs.device || 'elish' }} | ${{ github.event_name == 'push' && 'KSU' || (github.event.inputs.ksu == 'true' && 'KSU' || 'NoKSU') }}
-    runs-on: ubuntu-latest
+    name: Build elish | ${{ matrix.variant }} | ${{ github.event_name == 'push' && 'KSU' || (github.event.inputs.ksu == 'true' && 'KSU' || 'NoKSU') }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        # Push/PR always build both variants (the input is empty there);
+        # workflow_dispatch narrows the matrix to the requested variant.
+        variant: ${{ (github.event.inputs.variant == 'miui' && fromJSON('["miui"]')) || (github.event.inputs.variant == 'aosp' && fromJSON('["aosp"]')) || fromJSON('["miui","aosp"]') }}
 
     steps:
       - name: Checkout Repository
@@ -48,8 +44,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y bc bison build-essential ccache curl flex gawk \
             git gnupg gperf libncurses-dev \
-            lib32readline-dev lib32z1-dev liblz4-tool \
-            libsdl1.2-dev libssl-dev libxml2 libxml2-utils lzop pngcrush rsync \
+            lib32readline-dev lib32z1-dev lz4 \
+            libsdl1.2-dev libssl-dev libxml2-utils lzop pngcrush rsync \
             schedtool squashfs-tools xsltproc zip zlib1g-dev python3 \
             clang lld gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu \
             gcc-arm-linux-gnueabi binutils-arm-linux-gnueabi
@@ -58,9 +54,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/ccache_mikernel
-          key: ${{ runner.os }}-kernel-ccache-${{ github.event.inputs.device || 'elish' }}-${{ github.run_id }}
+          key: ${{ runner.os }}-kernel-ccache-elish-${{ matrix.variant }}-${{ github.run_id }}
           restore-keys: |
-            ${{ runner.os }}-kernel-ccache-${{ github.event.inputs.device || 'elish' }}-
+            ${{ runner.os }}-kernel-ccache-elish-${{ matrix.variant }}-
+            ${{ runner.os }}-kernel-ccache-elish-
             ${{ runner.os }}-kernel-ccache-
 
       - name: Setup proton-clang Toolchain
@@ -84,8 +81,7 @@ jobs:
         run: |
           chmod +x build.sh
 
-          DEVICE="${{ github.event.inputs.device || 'elish' }}"
-          ARGS="$DEVICE"
+          ARGS="elish"
 
           if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event_name }}" = "pull_request" ]; then
             ARGS="$ARGS ksu"
@@ -93,13 +89,15 @@ jobs:
             ARGS="$ARGS ksu"
           fi
 
+          ARGS="$ARGS ${{ matrix.variant }}"
+
           echo "Executing command: ./build.sh $ARGS"
           ./build.sh $ARGS
 
       - name: Upload Flashable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Kernel-${{ github.event.inputs.device || 'elish' }}-${{ github.event_name == 'push' && 'KSU' || (github.event.inputs.ksu == 'true' && 'KSU' || 'NoKSU') }}-${{ github.run_id }}
+          name: Kernel-elish-${{ matrix.variant }}-${{ github.event_name == 'push' && 'KSU' || (github.event.inputs.ksu == 'true' && 'KSU' || 'NoKSU') }}-${{ github.run_id }}
           path: "*.zip"
           compression-level: 0
           if-no-files-found: ignore

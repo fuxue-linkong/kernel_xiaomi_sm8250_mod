@@ -8,17 +8,29 @@ set -e
 TOOLCHAIN_PATH=$HOME/proton-clang/proton-clang-20210522/bin
 GIT_COMMIT_ID=$(git rev-parse --short=8 HEAD)
 TARGET_DEVICE=$1
+VARIANT="${3:-miui}"
 
 if [ -z "$1" ]; then
-    echo "Error: No argument provided, please specific a target device." 
-    echo "If you need KernelSU, please add [ksu] as the second arg."
+    echo "Error: No argument provided, please specific a target device."
+    echo "Usage: bash build.sh <device> [ksu] [miui|aosp|both]"
     echo "Examples:"
-    echo "Build for lmi(K30 Pro/POCO F2 Pro) without KernelSU:"
-    echo "    bash build.sh lmi"
-    echo "Build for umi(Mi10) with KernelSU:"
-    echo "    bash build.sh umi ksu"
+    echo "Build for elish with KernelSU, MIUI variant (default):"
+    echo "    bash build.sh elish ksu"
+    echo "Build for elish with KernelSU, AOSP variant:"
+    echo "    bash build.sh elish ksu aosp"
+    echo "Build for elish with KernelSU, both MIUI and AOSP variants:"
+    echo "    bash build.sh elish ksu both"
     exit 1
 fi
+
+case "$VARIANT" in
+    miui|aosp|both) ;;
+    *)
+        echo "Error: unsupported variant [$VARIANT]."
+        echo "Valid variants: miui, aosp, both"
+        exit 1
+        ;;
+esac
 
 
 
@@ -126,65 +138,92 @@ git clone https://github.com/liyafe1997/AnyKernel3 -b kona --single-branch --dep
 local_version_str="-perf"
 local_version_date_str="-FuXue1.0-$(date +%Y%m%d)"
 
+DTS_SOURCE=arch/arm64/boot/dts/vendor/qcom
+
+# Restore the working tree even when a build fails midway. Both steps are
+# idempotent on a successful build.
+cleanup() {
+    sed -i "s/${local_version_date_str}/${local_version_str}/g" \
+        "arch/arm64/configs/${TARGET_DEVICE}_defconfig" 2>/dev/null || true
+    if [ -d .dts.bak ]; then
+        rm -rf "${DTS_SOURCE}"
+        mv .dts.bak "${DTS_SOURCE}"
+    fi
+}
+trap cleanup EXIT
+
 sed -i "s/${local_version_str}/${local_version_date_str}/g" arch/arm64/configs/${TARGET_DEVICE}_defconfig
 
-# ------------- Building for AOSP (disabled: only MIUI needed) -------------
-#  To re-enable AOSP, uncomment the block below.
+# ------------- Building for AOSP -------------
+# AOSP builds keep the stock display DTS untouched; the MIUI-specific panel
+# and refresh-rate edits are applied only in the MIUI block below.
 
-# echo "Building for AOSP......"
-# make $MAKE_ARGS ${TARGET_DEVICE}_defconfig
+if [ "$VARIANT" != "miui" ]; then
 
-# if [ $KSU_ENABLE -eq 1 ]; then
-#     scripts/config --file out/.config \
-#     -e KSU \
-#     -e KSU_MANUAL_HOOK
-# else
-#     scripts/config --file out/.config -d KSU
-# fi
+echo "Building for AOSP......"
+rm -rf out/
 
-# make $MAKE_ARGS -j$(nproc)
+make $MAKE_ARGS ${TARGET_DEVICE}_defconfig
 
-# if [ -f "out/arch/arm64/boot/Image" ]; then
-#     echo "The file [out/arch/arm64/boot/Image] exists. AOSP Build successfully."
-# else
-#     echo "The file [out/arch/arm64/boot/Image] does not exist. Seems AOSP build failed."
-#     exit 1
-# fi
+# Disable DEBUG_INFO to avoid gcc-objdump DWARF5 warning spam
+scripts/config --file out/.config -d DEBUG_INFO
 
-# echo "Generating [out/arch/arm64/boot/dtb]......"
-# find out/arch/arm64/boot/dts -name '*.dtb' -exec cat {} + >out/arch/arm64/boot/dtb
+if [ $KSU_ENABLE -eq 1 ]; then
+    scripts/config --file out/.config \
+    -e KSU \
+    -e KSU_SUSFS \
+    -e KSU_MANUAL_HOOK
+else
+    scripts/config --file out/.config -d KSU
+fi
 
-# rm -rf anykernel/kernels/
+make $MAKE_ARGS -j$(nproc)
 
-# mkdir -p anykernel/kernels/
+if [ -f "out/arch/arm64/boot/Image" ]; then
+    echo "The file [out/arch/arm64/boot/Image] exists. AOSP Build successfully."
+else
+    echo "The file [out/arch/arm64/boot/Image] does not exist. Seems AOSP build failed."
+    exit 1
+fi
 
-# cp out/arch/arm64/boot/Image anykernel/kernels/
-# cp out/arch/arm64/boot/dtb anykernel/kernels/
+echo "Generating [out/arch/arm64/boot/dtb]......"
+find out/arch/arm64/boot/dts -name '*.dtb' -exec cat {} + >out/arch/arm64/boot/dtb
 
-# cd anykernel
+rm -rf anykernel/kernels/
 
-# ZIP_FILENAME=Kernel_AOSP_${TARGET_DEVICE}_${KSU_ZIP_STR}_$(date +'%Y%m%d_%H%M%S')_anykernel3_${GIT_COMMIT_ID}.zip
+mkdir -p anykernel/kernels/
 
-# zip -r9 $ZIP_FILENAME ./* -x .git .gitignore out/ ./*.zip
+cp out/arch/arm64/boot/Image anykernel/kernels/
+cp out/arch/arm64/boot/dtb anykernel/kernels/
 
-# mv $ZIP_FILENAME ../
+cd anykernel
 
-# cd ..
+ZIP_FILENAME=Kernel_AOSP_${TARGET_DEVICE}_${KSU_ZIP_STR}_$(date +'%Y%m%d_%H%M%S')_anykernel3_${GIT_COMMIT_ID}.zip
 
-# echo "Build for AOSP finished."
+zip -r9 $ZIP_FILENAME ./* -x .git .gitignore out/ ./*.zip
+
+mv $ZIP_FILENAME ../
+
+cd ..
+
+echo "Build for AOSP finished."
+
+fi
 
 # ------------- End of Building for AOSP -------------
 
 
 # ------------- Building for MIUI -------------
 
+if [ "$VARIANT" != "aosp" ]; then
 
 echo "Clearning [out/] and build for MIUI....."
 rm -rf out/
 
-dts_source=arch/arm64/boot/dts/vendor/qcom
+dts_source="${DTS_SOURCE}"
 
 # Backup dts
+rm -rf .dts.bak
 cp -a ${dts_source} .dts.bak
 
 # Correct panel dimensions on MIUI builds
@@ -313,9 +352,6 @@ cp out/arch/arm64/boot/dtb anykernel/kernels/
 
 echo "Build for MIUI finished."
 
-# Restore local version string
-sed -i "s/${local_version_date_str}/${local_version_str}/g" arch/arm64/configs/${TARGET_DEVICE}_defconfig
-
 # ------------- End of Building for MIUI -------------
 #  If you don't need MIUI you can comment out the above block [Building for MIUI]
 
@@ -330,4 +366,7 @@ mv $ZIP_FILENAME ../
 
 cd ..
 
-echo "Done. The flashable zip is: [./$ZIP_FILENAME]"
+fi
+
+echo "Done. The flashable zip(s):"
+ls -1 ./*.zip 2>/dev/null || true
