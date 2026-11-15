@@ -9,10 +9,18 @@ TOOLCHAIN_PATH=$HOME/proton-clang/proton-clang-20210522/bin
 GIT_COMMIT_ID=$(git rev-parse --short=8 HEAD)
 TARGET_DEVICE=$1
 VARIANT="${3:-miui}"
+# Optional build tag inserted into the zip name, e.g. BPF. CI passes it for
+# the backport-5.10-bpf branch so its artifacts cannot be confused with the
+# android15-lineage22-mod ones. Empty for local/legacy builds.
+BUILD_TAG="${4:-}"
+ZIP_TAG=""
+if [ -n "$BUILD_TAG" ]; then
+    ZIP_TAG="_${BUILD_TAG}"
+fi
 
 if [ -z "$1" ]; then
     echo "Error: No argument provided, please specific a target device."
-    echo "Usage: bash build.sh <device> [ksu] [miui|aosp|both]"
+    echo "Usage: bash build.sh <device> [ksu] [miui|aosp|both] [tag]"
     echo "Examples:"
     echo "Build for elish with KernelSU, MIUI variant (default):"
     echo "    bash build.sh elish ksu"
@@ -20,6 +28,8 @@ if [ -z "$1" ]; then
     echo "    bash build.sh elish ksu aosp"
     echo "Build for elish with KernelSU, both MIUI and AOSP variants:"
     echo "    bash build.sh elish ksu both"
+    echo "Build for the bpf branch (adds _BPF to the zip name):"
+    echo "    bash build.sh elish ksu aosp BPF"
     exit 1
 fi
 
@@ -204,7 +214,7 @@ cp out/arch/arm64/boot/dtb anykernel/kernels/
 
 cd anykernel
 
-ZIP_FILENAME=Kernel_AOSP_${TARGET_DEVICE}_${KSU_ZIP_STR}_$(date +'%Y%m%d_%H%M%S')_anykernel3_${GIT_COMMIT_ID}.zip
+ZIP_FILENAME=Kernel_AOSP_${TARGET_DEVICE}_${KSU_ZIP_STR}${ZIP_TAG}_$(date +'%Y%m%d_%H%M%S')_anykernel3_${GIT_COMMIT_ID}.zip
 
 zip -r9 $ZIP_FILENAME ./* -x .git .gitignore out/ ./*.zip
 
@@ -364,7 +374,7 @@ echo "Build for MIUI finished."
 
 cd anykernel 
 
-ZIP_FILENAME=Kernel_MIUI_${TARGET_DEVICE}_${KSU_ZIP_STR}_$(date +'%Y%m%d_%H%M%S')_anykernel3_${GIT_COMMIT_ID}.zip
+ZIP_FILENAME=Kernel_MIUI_${TARGET_DEVICE}_${KSU_ZIP_STR}${ZIP_TAG}_$(date +'%Y%m%d_%H%M%S')_anykernel3_${GIT_COMMIT_ID}.zip
 
 zip -r9 $ZIP_FILENAME ./* -x .git .gitignore out/ ./*.zip
 

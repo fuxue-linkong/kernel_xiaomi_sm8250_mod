@@ -91,13 +91,19 @@ jobs:
 
           ARGS="$ARGS ${{ matrix.variant }}"
 
+          # Tag bpf-branch artifacts so they cannot be confused with the
+          # android15 ones; build.sh appends _BPF to the zip name.
+          if [ "${{ github.ref_name }}" = "backport-5.10-bpf" ]; then
+            ARGS="$ARGS BPF"
+          fi
+
           echo "Executing command: ./build.sh $ARGS"
           ./build.sh $ARGS
 
       - name: Upload Flashable ZIP
         uses: actions/upload-artifact@v4
         with:
-          name: Kernel-elish-${{ matrix.variant }}-${{ github.event_name == 'push' && 'KSU' || (github.event.inputs.ksu == 'true' && 'KSU' || 'NoKSU') }}-${{ github.run_id }}
+          name: Kernel-elish-${{ matrix.variant }}-${{ github.event_name == 'push' && 'KSU' || (github.event.inputs.ksu == 'true' && 'KSU' || 'NoKSU') }}${{ (github.ref_name == 'backport-5.10-bpf' && '-BPF') || '' }}-${{ github.run_id }}
           path: "*.zip"
           compression-level: 0
           if-no-files-found: ignore
