@@ -2,7 +2,7 @@
 
 [![Build Kernel](https://github.com/fuxue-linkong/kernel_xiaomi_sm8250_mod/actions/workflows/build.yml/badge.svg)](https://github.com/fuxue-linkong/kernel_xiaomi_sm8250_mod/actions/workflows/build.yml)
 
-基于 LineageOS 22.1 内核源码，集成 [BakaSU](https://github.com/Baka-SU/BakaSU)，内核版本 **4.19.325-FuXue1.0**
+基于 LineageOS 22.1 内核源码，集成 [BakaSU](https://github.com/Baka-SU/BakaSU)，内核版本 **4.19.325-FuXue**
 
 [English](#english) | [中文](#中文)
 
