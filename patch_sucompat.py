@@ -1,11 +1,9 @@
 #!/usr/bin/env python3
-"""为 ReSukiSU 的 SUSFS 版 ksu_handle_faccessat 补回 uid 校验。
+"""为 BakaSU 的 SUSFS 版 ksu_handle_faccessat 补回 uid 校验。
 
-【已停用】本仓库的 root 管理器已由 ReSukiSU 切换为 BakaSU
-(https://github.com/Baka-SU/BakaSU)。BakaSU 的 feature/sucompat.c 中
-静态分支版 ksu_handle_faccessat 依赖上游 is_ksud_exists()/susfs 调用侧收紧，
-不再需要本补丁，因此 build.sh 不再调用本脚本。保留此文件仅为需要回退到
-ReSukiSU 时使用（届时恢复 build.sh 中对本脚本的调用即可）。
+build.sh 在拉取 BakaSU 后调用本脚本修补 KernelSU/kernel/feature/sucompat.c。
+背景：BakaSU 的 feature/sucompat.c 中静态分支版 ksu_handle_faccessat
+依赖上游 is_ksud_exists()/susfs 调用侧收紧，但仍缺少 uid 校验（见下）。
 
 背景
 ----
