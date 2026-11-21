@@ -139,6 +139,18 @@ EXPORT_SYMBOL(vfs_getattr);
  *
  * 0 will be returned on success, and a -ve error code if unsuccessful.
  */
+#ifdef CONFIG_KSU_SUSFS
+/* BakaSU(>= 2026-11 main, inline_hook_check.mk)要求内核侧提供
+ * ksu_handle_vfs_fstat 挂点：fstat()/newfstat() 命中 init.rc 时，
+ * 驱动把注入的 module rc 长度追加到 stat->size 上，供 init 解析。
+ * 4.19 的 vfs_fstat() 是 include/linux/fs.h 里的 static inline，
+ * 唯一真实实现就是 vfs_statx_fd()，因此把挂点放在这里，与上游
+ * 6.x 在 vfs_fstat() 内挂 hook 的语义等价，并同时覆盖 compat 路径。
+ * 函数只在 CONFIG_KSU_SUSFS 下编译，调用侧必须用同样的守护。 */
+extern struct static_key_true ksu_is_init_rc_hook_enabled;
+extern void ksu_handle_vfs_fstat(int fd, loff_t *kstat_size_ptr);
+#endif
+
 int vfs_statx_fd(unsigned int fd, struct kstat *stat,
 		 u32 request_mask, unsigned int query_flags)
 {
@@ -152,6 +164,12 @@ int vfs_statx_fd(unsigned int fd, struct kstat *stat,
 	if (f.file) {
 		error = vfs_getattr(&f.file->f_path, stat,
 				    request_mask, query_flags);
+#ifdef CONFIG_KSU_SUSFS
+		/* 与上游 SUSFS 补丁一致：getattr 成功后再改 size，
+		 * 并用 static key 把未启用时的开销压到 nop。 */
+		if (!error && static_branch_unlikely(&ksu_is_init_rc_hook_enabled))
+			ksu_handle_vfs_fstat(fd, &stat->size);
+#endif
 		fdput(f);
 	}
 	return error;
