@@ -219,7 +219,7 @@ cd anykernel
 
 ZIP_FILENAME=Kernel_AOSP_${TARGET_DEVICE}_${KSU_ZIP_STR}${ZIP_TAG}_$(date +'%Y%m%d_%H%M%S')_anykernel3_${GIT_COMMIT_ID}.zip
 
-zip -r9 $ZIP_FILENAME ./* -x .git .gitignore out/ ./*.zip
+zip -r0 $ZIP_FILENAME ./* -x .git .gitignore out/ ./*.zip
 
 mv $ZIP_FILENAME ../
 
@@ -379,7 +379,7 @@ cd anykernel
 
 ZIP_FILENAME=Kernel_MIUI_${TARGET_DEVICE}_${KSU_ZIP_STR}${ZIP_TAG}_$(date +'%Y%m%d_%H%M%S')_anykernel3_${GIT_COMMIT_ID}.zip
 
-zip -r9 $ZIP_FILENAME ./* -x .git .gitignore out/ ./*.zip
+zip -r0 $ZIP_FILENAME ./* -x .git .gitignore out/ ./*.zip
 
 mv $ZIP_FILENAME ../
 
