@@ -122,6 +122,10 @@ static int susfs_statfs_by_dentry(struct dentry *dentry, struct vfsmount *mnt, s
 int vfs_statfs(const struct path *path, struct kstatfs *buf)
 {
 	int error;
+	/* open_redirect 声明提前到函数头，遵守 -Wdeclaration-after-statement（4.19 内核 C89 习惯） */
+#ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
+	struct inode *inode = path->dentry->d_inode;
+#endif
 #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 	if (susfs_is_current_app_uid()) {
 		struct inode *inode = d_backing_inode(path->dentry);
@@ -135,9 +139,6 @@ int vfs_statfs(const struct path *path, struct kstatfs *buf)
 #endif // #ifdef CONFIG_KSU_SUSFS_SUS_KSTAT
 
 #ifdef CONFIG_KSU_SUSFS_OPEN_REDIRECT
-	/* 本地扩展（v2.2.0 起保留）：open_redirect 命中时直接 spoof 整个 kstatfs */
-	struct inode *inode = path->dentry->d_inode;
-
 	if (SUSFS_IS_INODE_OPEN_REDIRECT(inode)) {
 		if (susfs_open_redirect_spoof_vfs_statfs(inode, buf))
 			goto orig_flow;
