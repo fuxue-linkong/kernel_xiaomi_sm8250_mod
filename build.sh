@@ -118,15 +118,31 @@ echo "TARGET_DEVICE: $TARGET_DEVICE"
 if [ $KSU_ENABLE -eq 1 ]; then
     echo "KSU is enabled (BakaSU)"
     # ReSukiSU 已更名为 BakaSU（同一项目，仓库迁移至 Baka-SU/BakaSU）。
-    # 锁定到固定 commit（2026-11-16 main）以保证构建可复现。
-    # 相对上一版（d5e9e02，2026-10-24）的变化：
-    # - inline_hook_check.mk 新增 ksu_handle_vfs_fstat 检查（Android 17 要求，
-    #   PR #646），内核侧 fs/stat.c 已补对应挂点，否则构建会 $(error)。
-    # - susfs_compat.mk 仍无硬门闩，4.19 + SUSFS v2.3.0 可正常编译。
+    # 锁定到固定 commit（2026-11-28 main）以保证构建可复现。
+    # 相对上一版（7b65bde，2026-11-16）的变化与 4.19 适配核验：
+    # - 27 个上游提交，其中 16 条 kernel 相关，主线是 selinux_hide 重构：
+    #   feature/selinux_hide.c 拆为 feature/selinux_hide/ 目录，auto 与 susfs 两条
+    #   实现分文件（selinux_hide_auto.c / selinux_hide_susfs.c），Kbuild 路径随之
+    #   改为 feature/selinux_hide/selinux_hide.o。
+    # - inline_hook_check.mk / manual_hook_check.mk 与上一版完全一致，8 个挂点要求
+    #   不变（fs/stat.c 的 ksu_handle_vfs_fstat 等均已就位）。
+    # - susfs_compat.mk 仅缩进调整；本内核无 ksu_selinux_hide_running 与
+    #   ksu_install_su_fd，两个兼容宏仍不定义，4.19 + SUSFS v2.4.0 继续走 auto 路径。
+    # - 新增 inode_setxattr LSM hook（PR #3996）：4.19 无 include/linux/lsm_hook_defs.h，
+    #   但该 hook 只出现在 <4.2 的手动 ops 分支；4.19 走 security_add_hooks，且
+    #   inode_setxattr_fn 是 BakaSU 自有 typedef、auto 路径用 KSU_LSM_HOOK_INIT 做符号
+    #   解析，不依赖内核 typedef，故无需内核侧改动。
+    # - static_export_check.mk 新增 latest_granting / inode_doinit_with_dentry 的非
+    #   static 检查，只在无 struct selinux_state 的老内核执行；本内核 4.19 有
+    #   selinux_state，不触发。
+    # - kernel_compat.mk 新增 5.12/6.3 inode_setxattr 原型探测（4.19 老原型不命中）、
+    #   LABEL_INITIALIZED（4.5+，命中）与 audit_context()（4.18+，命中）。
+    # - Kconfig 新增 KSU_SUSFS_PRIORITY_UID_FILTER（depends on KSU_SUSFS，默认 y），
+    #   由下面的 -e KSU_SUSFS 自动带出，内核侧不支持也只是空特性。
     # - patch_sucompat.py 锚点已对新版 sucompat.c 核验，仍精确匹配。
     # Update BAKASU_COMMIT when bumping BakaSU.
     # 上游 setup.sh 会在 drivers/ 下建立 kernelsu 软链接，并追加 CONFIG_KSU 的 Makefile/Kconfig 条目。
-    BAKASU_COMMIT=7b65bde0710b5e7c6f755545cb15a4abd417f3a8
+    BAKASU_COMMIT=99ff0a27ca5477180da6d70e7387b91b0a9aa5b7
     curl -LSs "https://raw.githubusercontent.com/Baka-SU/BakaSU/main/kernel/setup.sh" | bash -s "$BAKASU_COMMIT"
 
     # BakaSU 上游 sucompat 的 SUSFS 版 ksu_handle_faccessat 仍缺少 uid 校验，
